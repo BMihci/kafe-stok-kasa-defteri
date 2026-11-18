@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#6f4a2f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kafe Defteri">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Kafe Stok ve Kasa Defteri</title>
+<style>
+  :root {
+    --bg: #f7f2ec; --card: #ffffff; --text: #2a211b; --muted: #857668; --border: #e7ddd2;
+    --accent: #6f4a2f; --accent-2: #b5763f; --ok: #2f7d5b; --bad: #c2452d; --chip: #f2e9df;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #191512; --card: #241e1a; --text: #f3ebe3; --muted: #a8998b; --border: #3a302a;
+      --accent: #c98f5c; --accent-2: #e2b07f; --ok: #5fc195; --bad: #ef7a62; --chip: #2f2722;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); line-height: 1.4;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 12px 16px 48px; }
+  .hidden { display: none !important; }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 12px; }
+  header h1 { flex: 1 1 auto; min-width: 0; font-size: 1.15rem; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .datenav { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .datenav button {
+    width: 32px; height: 36px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); font-size: 1.1rem; cursor: pointer;
+  }
+  .datenav button:disabled { opacity: .35; cursor: default; }
+  .datenav input { padding: 6px 8px; font-size: .9rem; }
+  #todayBtn { width: auto; padding: 0 10px; font-size: .82rem; font-weight: 600; color: var(--accent); }
+
+  nav.tabs {
+    display: flex; gap: 4px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 4px; margin-bottom: 14px; position: sticky; top: 6px; z-index: 5;
+  }
+  nav.tabs button {
+    flex: 1; border: none; background: transparent; color: var(--muted); padding: 9px 4px;
+    border-radius: 10px; font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer;
+  }
+  nav.tabs button.active { background: var(--accent); color: #fff; }
+  .badge {
+    display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; margin-left: 2px;
+    background: var(--bad); color: #fff; font-size: .72rem; line-height: 18px; text-align: center;
+  }
+  section[data-tab] { display: none; }
+  section[data-tab].on { display: block; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 1rem; margin: 0 0 12px; }
+  .card p { margin: 0 0 12px; }
+  .row-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .row-head h2 { margin: 0; }
+
+  .kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kpi { background: var(--chip); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+  .kpi span { display: block; font-size: .78rem; color: var(--muted); }
+  .kpi b { font-size: 1.1rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .kpi.main { grid-column: 1 / -1; }
+  .kpi.main b { font-size: 1.6rem; }
+  .pos { color: var(--ok); }
+  .neg { color: var(--bad); }
+
+  .seg { display: inline-flex; background: var(--chip); border-radius: 10px; padding: 3px; flex: none; }
+  .seg button {
+    border: none; background: transparent; padding: 6px 12px; border-radius: 8px;
+    font: inherit; font-size: .85rem; color: var(--muted); cursor: pointer;
+  }
+  .seg button.on { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .pbtn {
+    position: relative; border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    border-radius: 12px; padding: 12px 6px; font: inherit; cursor: pointer; text-align: center; min-height: 66px;
+  }
+  .pbtn b { display: block; font-size: .92rem; overflow-wrap: anywhere; }
+  .pbtn span { font-size: .8rem; color: var(--muted); }
+  .pbtn:active { transform: scale(.96); background: var(--chip); }
+  .pbtn i {
+    position: absolute; top: -6px; right: -4px; font-style: normal; min-width: 20px; padding: 0 5px;
+    border-radius: 10px; background: var(--accent); color: #fff; font-size: .72rem; line-height: 20px;
+  }
+  .grid .empty { grid-column: 1 / -1; }
+
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  ul.scroll { max-height: 340px; overflow: auto; }
+  ul.list li {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 9px 2px;
+    border-bottom: 1px solid var(--border); font-size: .92rem;
+  }
+  ul.list li:last-child { border-bottom: none; }
+  .list .t { flex: none; width: 42px; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+  .list .n { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  #txList li, #topList li { flex-wrap: nowrap; }
+  #txList .n, #topList .n { flex-basis: 0; }
+  .list .n small { display: block; color: var(--muted); font-size: .78rem; }
+  .list .a { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tag { flex: none; font-size: .72rem; padding: 2px 7px; border-radius: 6px; background: var(--chip); color: var(--muted); }
+  .x { flex: none; background: none; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; padding: 2px 6px; }
+  .x:hover { color: var(--bad); }
+
+  form.inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  input, select {
+    padding: 10px 11px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); font: inherit; font-size: 1rem; min-width: 0;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .grow { flex: 1 1 150px; }
+  .w-amt { flex: 0 1 112px; width: 112px; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; color: var(--muted); cursor: pointer; }
+  .chk input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 10px;
+    padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; background: var(--accent); color: #fff;
+  }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+  .btn.small { padding: 6px 11px; font-size: .85rem; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .empty { color: var(--muted); text-align: center; padding: 14px 0; font-size: .92rem; }
+  .hint { color: var(--muted); font-size: .8rem; margin: 10px 0 0; }
+  .alert {
+    display: block; width: 100%; text-align: left; font: inherit; font-size: .9rem; color: var(--text);
+    background: color-mix(in srgb, var(--bad) 12%, var(--card)); border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
+    border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; cursor: pointer;
+  }
+
+  .kasa { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center; font-size: .93rem; }
+  .kasa input { width: 124px; text-align: right; }
+  .kasa b { text-align: right; font-variant-numeric: tabular-nums; }
+  .kasa .tot { font-weight: 700; }
+  .kasa .sep { grid-column: 1 / -1; border-top: 1px dashed var(--border); }
+
+  .stock .qty { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+  .stock li.low .qty { color: var(--bad); }
+  .stock li.low .n b::after { content: " · azaldı"; color: var(--bad); font-weight: 600; font-size: .8rem; }
+  .ctrls { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .step {
+    width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 1.1rem; cursor: pointer; flex: none;
+  }
+  form.entry { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 0 2px; }
+
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 150px; }
+  .chart .col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; }
+  .chart .val { font-size: .7rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chart .cbar { width: 100%; max-width: 38px; border-radius: 6px 6px 2px 2px; background: color-mix(in srgb, var(--accent-2) 45%, transparent); }
+  .chart .day { font-size: .75rem; color: var(--muted); }
+  .chart .col.sel .cbar { background: var(--accent); }
+  .chart .col.sel .day, .chart .col.sel .val { color: var(--text); font-weight: 600; }
+
+  .prod input.pn { flex: 1 1 120px; }
+  .prod input.pp { flex: 0 0 96px; width: 96px; text-align: right; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
+    display: flex; align-items: center; gap: 14px; max-width: calc(100% - 32px); z-index: 20;
+    background: #2a211b; color: #fff; padding: 10px 14px; border-radius: 12px; font-size: .9rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,.25); transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .toast button { background: none; border: none; color: #f3c08f; font: inherit; font-weight: 700; cursor: pointer; padding: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="cafeName">☕ Kafem</h1>
+    <div class="datenav">
+      <button id="todayBtn" class="hidden" type="button">Bugün</button>
+      <button id="prevDay" type="button" aria-label="Önceki gün">‹</button>
+      <input type="date" id="day" aria-label="Gösterilen gün">
+      <button id="nextDay" type="button" aria-label="Sonraki gün">›</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button type="button" data-tab="kasa" class="active">Kasa</button>
+    <button type="button" data-tab="stok">Stok<span class="badge hidden" id="lowBadge"></span></button>
+    <button type="button" data-tab="rapor">Rapor</button>
+    <button type="button" data-tab="ayar">Ayarlar</button>
+  </nav>
+
+  <div class="card hidden" id="welcome">
+    <h2>Hoş geldin 👋</h2>
+    <p>Satışlarını, giderlerini ve stoğunu tek yerden tut; gün sonunda kasanın tutup tutmadığını gör. Veriler yalnızca bu cihazda saklanır.</p>
+    <div class="btns">
+      <button class="btn" id="demoBtn" type="button">Örnek verilerle dene</button>
+      <button class="btn ghost" id="startBtn" type="button">Boş başla</button>
+    </div>
+  </div>
+
+  <!-- KASA -->
+  <section data-tab="kasa" class="on">
+    <button class="alert hidden" id="lowAlert" type="button"></button>
+
+    <div class="card">
+      <div class="kpis">
+        <div class="kpi main"><span>Ciro</span><b id="kCiro"></b></div>
+        <div class="kpi"><span>Nakit</span><b id="kNakit"></b></div>
+        <div class="kpi"><span>Kart</span><b id="kKart"></b></div>
+        <div class="kpi"><span>Gider</span><b id="kGider"></b></div>
+        <div class="kpi"><span>Net</span><b id="kNet"></b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row-head">
+        <h2>Hızlı satış</h2>
+        <div class="seg" id="paySeg" role="group" aria-label="Ödeme türü">
+          <button type="button" data-pay="nakit" class="on">Nakit</button>
+          <button type="button" data-pay="kart">Kart</button>
+        </div>
+      </div>
+      <div class="grid" id="pgrid"></div>
+      <p class="hint">Ürüne dokun, satış eklensin. Ürünleri ve fiyatları Ayarlar'dan düzenle.</p>
+    </div>
+
+    <div class="card">
+      <h2>Gider ekle</h2>
+      <form class="inline" id="expForm">
+        <input id="expDesc" class="grow" placeholder="Açıklama (ör. Süt alımı)" maxlength="80" autocomplete="off">
+        <input id="expAmt" class="w-amt" inputmode="decimal" placeholder="Tutar ₺" autocomplete="off">
+        <button class="btn" type="submit">Ekle</button>
+        <label class="chk"><input type="checkbox" id="expCard"> Kartla ödendi</label>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="row-head"><h2>Günün hareketleri</h2><span class="hint" id="txCount" style="margin:0"></span></div>
+      <ul class="list scroll" id="txList"></ul>
+    </div>
+
+    <div class="card">
+      <h2>Gün sonu kasa sayımı</h2>
+      <div class="kasa">
+        <label for="openCash">Açılış kasası</label><input id="openCash" inputmode="decimal" autocomplete="off">
+        <span>+ Nakit satış</span><b id="kzSales"></b>
+        <span>− Nakit gider</span><b id="kzExp"></b>
+        <div class="sep"></div>
+        <span class="tot">Kasada olması gereken</span><b class="tot" id="kzExpect"></b>
+        <label for="counted">Sayılan nakit</label><input id="counted" inputmode="decimal" placeholder="—" autocomplete="off">
+        <span class="tot">Fark</span><b class="tot" id="kzDiff">—</b>
+      </div>
+    </div>
+  </section>
+
+  <!-- STOK -->
+  <section data-tab="stok">
+    <div class="card">
+      <div class="row-head"><h2>Stok</h2><span class="hint" id="stockInfo" style="margin:0"></span></div>
+      <ul class="list stock" id="stockList"></ul>
+    </div>
+    <div class="card">
+      <h2>Yeni stok kalemi</h2>
+      <form class="inline" id="stockForm">
+        <input id="sName" class="grow" placeholder="Ad (ör. Süt)" maxlength="40" autocomplete="off">
+        <input id="sQty" class="w-amt" inputmode="decimal" placeholder="Miktar" autocomplete="off">
+        <select id="sUnit" aria-label="Birim">
+          <option>adet</option><option>kg</option><option>litre</option><option>paket</option><option>şişe</option><option>kutu</option>
+        </select>
+        <input id="sMin" class="w-amt" inputmode="decimal" placeholder="Uyarı sınırı" autocomplete="off">
+        <button class="btn" type="submit">Ekle</button>
+      </form>
+      <p class="hint">Miktar uyarı sınırına inince kalem kırmızıya döner. "Giriş" ile alım eklerken maliyet yazarsan gider olarak da kaydedilir.</p>
+    </div>
+  </section>
+
+  <!-- RAPOR -->
+  <section data-tab="rapor">
+    <div class="card">
+      <div class="row-head"><h2>Son 7 gün ciro</h2><span class="hint" id="weekInfo" style="margin:0"></span></div>
+      <div class="chart" id="chart" role="img" aria-label="Son 7 günün cirosu"></div>
+    </div>
+    <div class="card">
+      <div class="kpis">
+        <div class="kpi"><span>7 gün ciro</span><b id="wCiro"></b></div>
+        <div class="kpi"><span>7 gün gider</span><b id="wGider"></b></div>
+        <div class="kpi"><span>7 gün net</span><b id="wNet"></b></div>
+        <div class="kpi"><span>Günlük ortalama ciro</span><b id="wAvg"></b></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>En çok satanlar (7 gün)</h2>
+      <ul class="list" id="topList"></ul>
+    </div>
+    <div class="card">
+      <h2>Excel'e aktar</h2>
+      <div class="btns">
+        <button class="btn ghost" type="button" data-export="sales">Satışlar</button>
+        <button class="btn ghost" type="button" data-export="expenses">Giderler</button>
+        <button class="btn ghost" type="button" data-export="daily">Günlük özet</button>
+        <button class="btn ghost" type="button" data-export="stock">Stok listesi</button>
+      </div>
+      <p class="hint">CSV dosyası iner, Excel'de doğrudan açılır. Tüm günlerin kayıtlarını içerir.</p>
+    </div>
+  </section>
+
+  <!-- AYARLAR -->
+  <section data-tab="ayar">
+    <div class="card">
+      <h2>İşletme</h2>
+      <div class="kasa">
+        <label for="setName">Kafe adı</label><input id="setName" maxlength="40" autocomplete="off" style="width:170px;text-align:left">
+        <label for="setOpen">Varsayılan açılış kasası (₺)</label><input id="setOpen" inputmode="decimal" autocomplete="off">
+      </div>
+    </div>
+    <div class="card">
+      <h2>Ürünler ve fiyatlar</h2>
+      <ul class="list prod" id="prodList"></ul>
+      <form class="inline" id="prodForm" style="margin-top:10px">
+        <input id="pName" class="grow" placeholder="Ürün adı" maxlength="40" autocomplete="off">
+        <input id="pPrice" class="w-amt" inputmode="decimal" placeholder="Fiyat ₺" autocomplete="off">
+        <button class="btn" type="submit">Ekle</button>
+      </form>
+      <p class="hint">Fiyat değişikliği geçmiş satışları etkilemez.</p>
+    </div>
+    <div class="card">
+      <h2>Yedek</h2>
+      <div class="btns">
+        <button class="btn ghost" id="backupBtn" type="button">Yedeği indir</button>
+        <label class="btn ghost" for="restoreFile">Yedekten geri yükle</label>
+        <input type="file" id="restoreFile" accept="application/json,.json" class="hidden">
+      </div>
+      <p class="hint">Veriler yalnızca bu tarayıcıda saklanır. Telefon değiştirmeden ya da tarayıcı verilerini silmeden önce yedek al.</p>
+    </div>
+    <div class="card">
+      <h2>Sıfırla</h2>
+      <button class="btn danger" id="resetBtn" type="button">Tüm verileri sil</button>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+  const KEY = 'kafe-defter-v1';
+  const $ = id => document.getElementById(id);
+
+  // ---------- Yardımcılar ----------
+  const money = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 2 });
+  const fm = n => money.format(n || 0);
+  const r2 = n => Math.round(n * 100) / 100;
+  const fq = n => r2(n).toLocaleString('tr-TR');
+  const fin = n => String(r2(n)).replace('.', ',');           // input alanına yazmak için
+  const num = v => {                                          // "1.250,50" / "12,5" / "12.5" -> sayı
+    let s = String(v == null ? '' : v).trim().replace(/\s|₺/g, '');
+    if (/,/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : NaN;
+  };
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const pad = n => String(n).padStart(2, '0');
+  const dkey = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const parseKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (k, n) => { const d = parseKey(k); d.setDate(d.getDate() + n); return dkey(d); };
+  const today = () => dkey(new Date());
+  const nowHM = () => { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  const DAYS = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
+  const shortDate = k => parseKey(k).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+  const shortTL = n => n >= 10000 ? (Math.round(n / 100) / 10).toLocaleString('tr-TR') + 'B' : Math.round(n).toLocaleString('tr-TR');
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const setVal = (input, v) => { if (document.activeElement !== input) input.value = v; };
+
+  // ---------- Durum ----------
+  const blank = () => ({ v: 1, started: false, name: 'Kafem', settings: { openCash: 0 }, products: [], stock: [], sales: [], expenses: [], days: {} });
+  function normalize(s) {
+    const b = blank();
+    if (!s || typeof s !== 'object') return b;
+    for (const k of ['products', 'stock', 'sales', 'expenses']) b[k] = Array.isArray(s[k]) ? s[k] : [];
+    b.days = s.days && typeof s.days === 'object' && !Array.isArray(s.days) ? s.days : {};
+    if (typeof s.name === 'string' && s.name.trim()) b.name = s.name.trim();
+    b.settings.openCash = Number(s.settings && s.settings.openCash) || 0;
+    b.started = !!s.started || b.products.length > 0 || b.sales.length > 0;
+    return b;
+  }
+  let state = blank();
+  try { const raw = localStorage.getItem(KEY); if (raw) state = normalize(JSON.parse(raw)); } catch (e) {}
+  const save = () => {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e) { toast('Kaydedilemedi: tarayıcı depolaması dolu ya da kapalı.'); }
+  };
+
+  let day = today(), pay = 'nakit', entryOpen = null;
+
+  // ---------- Hesaplar ----------
+  const sum = (a, f) => r2(a.reduce((t, x) => t + f(x), 0));
+  function dayTotals(k) {
+    const s = state.sales.filter(x => x.d === k), e = state.expenses.filter(x => x.d === k);
+    const ciro = sum(s, x => x.price * x.qty);
+    const nakit = sum(s.filter(x => x.pay === 'nakit'), x => x.price * x.qty);
+    const gider = sum(e, x => x.amount);
+    const giderNakit = sum(e.filter(x => x.pay !== 'kart'), x => x.amount);
+    return { s, e, ciro, nakit, kart: r2(ciro - nakit), gider, giderNakit, net: r2(ciro - gider), adet: s.reduce((t, x) => t + x.qty, 0) };
+  }
+  const lowItems = () => state.stock.filter(i => i.qty <= i.min);
+
+  // ---------- Bildirim ----------
+  let toastTimer = null;
+  function toast(msg, action, fn) {
+    const t = $('toast');
+    t.textContent = '';
+    t.appendChild(el('span', null, msg));
+    if (action) {
+      const b = el('button', null, action);
+      b.type = 'button';
+      b.addEventListener('click', () => { t.classList.remove('show'); fn(); });
+      t.appendChild(b);
+    }
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), action ? 5000 : 1800);
+  }
+
+  // ---------- Sekmeler ----------
+  function setTab(name) {
+    document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('section[data-tab]').forEach(s => s.classList.toggle('on', s.dataset.tab === name));
+    window.scrollTo(0, 0);
+  }
+  $('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.tab); });
+
+  // ---------- Çizim ----------
+  function renderHeader() {
+    $('cafeName').textContent = '☕ ' + state.name;
+    document.title = state.name + ' · Kafe Defteri';
+    const t = today();
+    $('day').value = day;
+    $('day').max = t;
+    $('nextDay').disabled = day >= t;
+    $('todayBtn').classList.toggle('hidden', day === t);
+    $('welcome').classList.toggle('hidden', state.started);
+    const low = lowItems();
+    $('lowBadge').textContent = low.length;
+    $('lowBadge').classList.toggle('hidden', !low.length);
+  }
+
+  function renderKasa() {
+    const t = dayTotals(day);
+    $('kCiro').textContent = fm(t.ciro);
+    $('kNakit').textContent = fm(t.nakit);
+    $('kKart').textContent = fm(t.kart);
+    $('kGider').textContent = fm(t.gider);
+    $('kNet').textContent = fm(t.net);
+    $('kNet').className = t.net < 0 ? 'neg' : '';
+
+    const low = lowItems(), al = $('lowAlert');
+    al.classList.toggle('hidden', !low.length);
+    al.textContent = low.length ? '⚠ Stok azaldı: ' + low.map(i => i.name).join(', ') + ' →' : '';
+
+    const g = $('pgrid');
+    g.textContent = '';
+    const counts = {};
+    t.s.forEach(x => { counts[x.pid] = (counts[x.pid] || 0) + x.qty; });
+    if (!state.products.length) g.appendChild(el('div', 'empty', 'Henüz ürün yok. Ayarlar sekmesinden ekle.'));
+    state.products.forEach(p => {
+      const b = el('button', 'pbtn');
+      b.type = 'button';
+      b.append(el('b', null, p.name), el('span', null, fm(p.price)));
+      if (counts[p.id]) b.appendChild(el('i', null, counts[p.id]));
+      b.addEventListener('click', () => addSale(p));
+      g.appendChild(b);
+    });
+
+    const ul = $('txList');
+    ul.textContent = '';
+    const tx = t.s.map(x => ({ x, k: 's' })).concat(t.e.map(x => ({ x, k: 'e' }))).sort((a, b) => b.x.ts - a.x.ts);
+    if (!tx.length) ul.appendChild(el('li', 'empty', 'Bu gün için kayıt yok.'));
+    tx.forEach(({ x, k }) => {
+      const li = el('li');
+      const amount = k === 's' ? x.price * x.qty : x.amount;
+      const name = k === 's' ? x.name + (x.qty > 1 ? ' ×' + x.qty : '') : x.desc;
+      const tag = k === 's' ? (x.pay === 'kart' ? 'Kart' : 'Nakit') : (x.pay === 'kart' ? 'Gider · Kart' : 'Gider');
+      const del = el('button', 'x', '×');
+      del.type = 'button';
+      del.setAttribute('aria-label', 'Kaydı sil');
+      del.addEventListener('click', () => removeTx(k, x.id));
+      li.append(el('span', 't', x.t || '—'), el('span', 'n', name), el('span', 'tag', tag),
+        el('span', 'a' + (k === 'e' ? ' neg' : ''), (k === 'e' ? '−' : '') + fm(amount)), del);
+      ul.appendChild(li);
+    });
+    $('txCount').textContent = t.adet + ' satış · ' + t.e.length + ' gider';
+
+    const dd = state.days[day] || {};
+    const open = dd.open != null ? dd.open : state.settings.openCash;
+    setVal($('openCash'), fin(open));
+    $('kzSales').textContent = fm(t.nakit);
+    $('kzExp').textContent = fm(t.giderNakit);
+    const expect = r2(open + t.nakit - t.giderNakit);
+    $('kzExpect').textContent = fm(expect);
+    setVal($('counted'), dd.counted == null ? '' : fin(dd.counted));
+    const diffEl = $('kzDiff');
+    if (dd.counted == null) { diffEl.textContent = '—'; diffEl.className = 'tot'; }
+    else {
+      const diff = r2(dd.counted - expect);
+      diffEl.textContent = diff === 0 ? '✓ Kasa tutuyor' : (diff > 0 ? '+' : '') + fm(diff) + (diff > 0 ? ' fazla' : ' eksik');
+      diffEl.className = 'tot ' + (diff === 0 ? 'pos' : diff > 0 ? 'pos' : 'neg');
+    }
+  }
+
+  function renderStock() {
+    const ul = $('stockList');
+    ul.textContent = '';
+    if (!state.stock.length) ul.appendChild(el('li', 'empty', 'Henüz stok kalemi yok. Aşağıdan ekle.'));
+    let focusEl = null;
+    state.stock.forEach(i => {
+      const li = el('li', i.qty <= i.min ? 'low' : '');
+      li.dataset.id = i.id;
+      const n = el('div', 'n');
+      n.append(el('b', null, i.name), el('small', null, 'Uyarı sınırı: ' + fq(i.min) + ' ' + i.unit));
+      const qty = el('span', 'qty', fq(i.qty) + ' ' + i.unit);
+      const ctrls = el('div', 'ctrls');
+      const step = /kg|litre/.test(i.unit) ? 0.5 : 1;
+      const minus = el('button', 'step', '−'), plus = el('button', 'step', '+');
+      minus.type = plus.type = 'button';
+      minus.setAttribute('aria-label', i.name + ' azalt');
+      plus.setAttribute('aria-label', i.name + ' artır');
+      minus.addEventListener('click', () => adjust(i, -step));
+      plus.addEventListener('click', () => adjust(i, step));
+      const entry = el('button', 'btn ghost small', 'Giriş');
+      entry.type = 'button';
+      entry.addEventListener('click', () => { entryOpen = entryOpen === i.id ? null : i.id; renderStock(); });
+      const del = el('button', 'x', '×');
+      del.type = 'button';
+      del.setAttribute('aria-label', i.name + ' kalemini sil');
+      del.addEventListener('click', () => removeStock(i.id));
+      ctrls.append(minus, plus, entry, del);
+      li.append(n, qty, ctrls);
+
+      if (entryOpen === i.id) {
+        const f = el('form', 'entry');
+        const m = el('input', 'w-amt'); m.inputMode = 'decimal'; m.placeholder = 'Gelen ' + i.unit; m.setAttribute('aria-label', 'Gelen miktar');
+        const c = el('input', 'w-amt'); c.inputMode = 'decimal'; c.placeholder = 'Maliyet ₺'; c.setAttribute('aria-label', 'Toplam maliyet');
+        const ok = el('button', 'btn small', 'Ekle'); ok.type = 'submit';
+        const cancel = el('button', 'btn ghost small', 'Vazgeç'); cancel.type = 'button';
+        cancel.addEventListener('click', () => { entryOpen = null; renderStock(); });
+        f.addEventListener('submit', e => {
+          e.preventDefault();
+          const q = num(m.value), cost = c.value.trim() ? num(c.value) : 0;
+          if (!(q > 0)) { toast('Gelen miktarı yaz.'); m.focus(); return; }
+          if (Number.isNaN(cost) || cost < 0) { toast('Maliyet geçerli bir tutar olmalı.'); c.focus(); return; }
+          i.qty = r2(i.qty + q);
+          if (cost > 0) addExpense('Stok alımı: ' + i.name + ' (+' + fq(q) + ' ' + i.unit + ')', cost, 'nakit', false);
+          entryOpen = null;
+          save(); renderAll();
+          toast(i.name + ': +' + fq(q) + ' ' + i.unit + (cost > 0 ? ', gider eklendi' : ''));
+        });
+        f.append(m, c, ok, cancel);
+        li.appendChild(f);
+        focusEl = m;
+      }
+      ul.appendChild(li);
+    });
+    if (focusEl) focusEl.focus();
+    const low = lowItems().length;
+    $('stockInfo').textContent = state.stock.length + ' kalem' + (low ? ' · ' + low + ' azalan' : '');
+  }
+
+  function renderReport() {
+    const ch = $('chart');
+    ch.textContent = '';
+    const days = [];
+    for (let i = 6; i >= 0; i--) { const k = addDays(day, -i); days.push(Object.assign({ k }, dayTotals(k))); }
+    const max = Math.max(1, ...days.map(x => x.ciro));
+    days.forEach(x => {
+      const col = el('div', 'col' + (x.k === day ? ' sel' : ''));
+      col.title = shortDate(x.k) + ': ' + fm(x.ciro);
+      const bar = el('div', 'cbar');
+      bar.style.height = (x.ciro ? Math.max(6, Math.round(x.ciro / max * 100)) : 2) + 'px';
+      col.append(el('div', 'val', x.ciro ? shortTL(x.ciro) : '0'), bar, el('div', 'day', DAYS[parseKey(x.k).getDay()]));
+      ch.appendChild(col);
+    });
+    $('weekInfo').textContent = shortDate(days[0].k) + ' – ' + shortDate(days[6].k);
+    const wc = sum(days, x => x.ciro), wg = sum(days, x => x.gider);
+    $('wCiro').textContent = fm(wc);
+    $('wGider').textContent = fm(wg);
+    $('wNet').textContent = fm(r2(wc - wg));
+    $('wNet').className = wc - wg < 0 ? 'neg' : '';
+    $('wAvg').textContent = fm(r2(wc / 7));
+
+    const agg = {};
+    days.forEach(x => x.s.forEach(s => {
+      const a = agg[s.name] || (agg[s.name] = { q: 0, tl: 0 });
+      a.q += s.qty; a.tl += s.price * s.qty;
+    }));
+    const top = Object.entries(agg).sort((a, b) => b[1].q - a[1].q || b[1].tl - a[1].tl).slice(0, 5);
+    const ul = $('topList');
+    ul.textContent = '';
+    if (!top.length) ul.appendChild(el('li', 'empty', 'Bu aralıkta satış yok.'));
+    top.forEach(([name, a], idx) => {
+      const li = el('li');
+      li.append(el('span', 't', (idx + 1) + '.'), el('span', 'n', name), el('span', 'tag', a.q + ' adet'), el('span', 'a', fm(r2(a.tl))));
+      ul.appendChild(li);
+    });
+  }
+
+  function renderSettings() {
+    setVal($('setName'), state.name);
+    setVal($('setOpen'), fin(state.settings.openCash));
+    if ($('prodList').contains(document.activeElement)) return;
+    const ul = $('prodList');
+    ul.textContent = '';
+    if (!state.products.length) ul.appendChild(el('li', 'empty', 'Henüz ürün yok.'));
+    state.products.forEach(p => {
+      const li = el('li');
+      const n = el('input', 'pn'); n.value = p.name; n.maxLength = 40; n.setAttribute('aria-label', 'Ürün adı');
+      const pr = el('input', 'pp'); pr.value = fin(p.price); pr.inputMode = 'decimal'; pr.setAttribute('aria-label', p.name + ' fiyatı');
+      n.addEventListener('change', () => { const v = n.value.trim(); if (v) p.name = v; else n.value = p.name; save(); renderKasa(); });
+      pr.addEventListener('change', () => {
+        const v = num(pr.value);
+        if (v >= 0) p.price = r2(v); else toast('Fiyat geçerli bir tutar olmalı.');
+        pr.value = fin(p.price); save(); renderKasa();
+      });
+      const del = el('button', 'x', '×');
+      del.type = 'button';
+      del.setAttribute('aria-label', p.name + ' ürününü sil');
+      del.addEventListener('click', () => removeProduct(p.id));
+      li.append(n, pr, del);
+      ul.appendChild(li);
+    });
+  }
+
+  function renderAll() { renderHeader(); renderKasa(); renderStock(); renderReport(); renderSettings(); }
+
+  // ---------- İşlemler ----------
+  function addSale(p) {
+    state.sales.push({ id: uid(), d: day, t: day === today() ? nowHM() : '—', ts: Date.now(), pid: p.id, name: p.name, price: p.price, qty: 1, pay });
+    save(); renderAll();
+    toast(p.name + ' · ' + fm(p.price) + (pay === 'kart' ? ' (kart)' : ' (nakit)'));
+  }
+  function addExpense(desc, amount, payType, doSave = true) {
+    state.expenses.push({ id: uid(), d: day, t: day === today() ? nowHM() : '—', ts: Date.now(), desc, amount: r2(amount), pay: payType });
+    if (doSave) { save(); renderAll(); }
+  }
+  function undoable(arr, id, label, after) {
+    const i = arr.findIndex(x => x.id === id);
+    if (i < 0) return;
+    const [item] = arr.splice(i, 1);
+    if (after) after();
+    save(); renderAll();
+    toast(label + ' silindi', 'Geri al', () => { arr.splice(Math.min(i, arr.length), 0, item); save(); renderAll(); });
+  }
+  const removeTx = (k, id) => undoable(k === 's' ? state.sales : state.expenses, id, k === 's' ? 'Satış' : 'Gider');
+  const removeStock = id => undoable(state.stock, id, 'Stok kalemi', () => { if (entryOpen === id) entryOpen = null; });
+  const removeProduct = id => undoable(state.products, id, 'Ürün');
+  function adjust(i, d) { i.qty = Math.max(0, r2(i.qty + d)); save(); renderAll(); }
+
+  // ---------- Olaylar ----------
+  $('paySeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    pay = b.dataset.pay;
+    document.querySelectorAll('#paySeg button').forEach(x => x.classList.toggle('on', x === b));
+  });
+  $('lowAlert').addEventListener('click', () => setTab('stok'));
+
+  const goDay = k => { const t = today(); day = !k || k > t ? t : k; entryOpen = null; renderAll(); };
+  $('prevDay').addEventListener('click', () => goDay(addDays(day, -1)));
+  $('nextDay').addEventListener('click', () => goDay(addDays(day, 1)));
+  $('todayBtn').addEventListener('click', () => goDay(today()));
+  $('day').addEventListener('change', e => goDay(e.target.value));
+
+  $('expForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const amt = num($('expAmt').value);
+    if (!(amt > 0)) { toast('Gider tutarını yaz.'); $('expAmt').focus(); return; }
+    const desc = $('expDesc').value.trim() || 'Gider';
+    addExpense(desc, amt, $('expCard').checked ? 'kart' : 'nakit');
+    $('expDesc').value = ''; $('expAmt').value = ''; $('expCard').checked = false;
+    toast('Gider eklendi: ' + fm(amt));
+  });
+
+  const dayField = (id, field) => $(id).addEventListener('change', e => {
+    const n = num(e.target.value);
+    const d = state.days[day] || (state.days[day] = {});
+    if (e.target.value.trim() === '' || Number.isNaN(n)) delete d[field]; else d[field] = r2(n);
+    if (!Object.keys(d).length) delete state.days[day];
+    e.target.blur();
+    save(); renderKasa();
+  });
+  dayField('openCash', 'open');
+  dayField('counted', 'counted');
+
+  $('stockForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('sName').value.trim();
+    if (!name) { toast('Kalemin adını yaz.'); $('sName').focus(); return; }
+    const q = $('sQty').value.trim() ? num($('sQty').value) : 0;
+    const m = $('sMin').value.trim() ? num($('sMin').value) : 0;
+    if (!(q >= 0) || !(m >= 0)) { toast('Miktar ve uyarı sınırı sayı olmalı.'); return; }
+    state.stock.push({ id: uid(), name, unit: $('sUnit').value, qty: r2(q), min: r2(m) });
+    $('sName').value = ''; $('sQty').value = ''; $('sMin').value = '';
+    state.started = true;
+    save(); renderAll();
+    $('sName').focus();
+  });
+
+  $('prodForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = $('pName').value.trim(), price = num($('pPrice').value);
+    if (!name) { toast('Ürün adını yaz.'); $('pName').focus(); return; }
+    if (!(price >= 0)) { toast('Fiyatı yaz.'); $('pPrice').focus(); return; }
+    state.products.push({ id: uid(), name, price: r2(price) });
+    $('pName').value = ''; $('pPrice').value = '';
+    state.started = true;
+    save(); renderAll();
+    $('pName').focus();
+  });
+
+  $('setName').addEventListener('change', e => { const v = e.target.value.trim(); if (v) state.name = v; save(); renderHeader(); });
+  $('setOpen').addEventListener('change', e => {
+    const n = num(e.target.value);
+    if (n >= 0) state.settings.openCash = r2(n);
+    e.target.value = fin(state.settings.openCash);
+    save(); renderKasa();
+  });
+
+  // ---------- Dışa aktarma ve yedek ----------
+  const txt = s => { s = String(s == null ? '' : s); return /^[=+\-@\t\r]/.test(s) ? "'" + s : s; };
+  const dec = n => String(r2(n)).replace('.', ',');
+  const csv = rows => '﻿' + rows.map(r => r.map(c => {
+    const s = String(c == null ? '' : c);
+    return /[";\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(';')).join('\r\n');
+  function download(name, text, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type }));
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  const slug = () => (state.name.toLocaleLowerCase('tr-TR')
+    .replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ş/g, 's').replace(/ü/g, 'u')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'kafe');
+  const byTime = (a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : a.ts - b.ts);
+  const EXPORTS = {
+    sales: ['satislar', () => [['Tarih', 'Saat', 'Ürün', 'Adet', 'Birim fiyat', 'Tutar', 'Ödeme']].concat(
+      state.sales.slice().sort(byTime).map(s => [s.d, s.t, txt(s.name), s.qty, dec(s.price), dec(s.price * s.qty), s.pay === 'kart' ? 'Kart' : 'Nakit']))],
+    expenses: ['giderler', () => [['Tarih', 'Saat', 'Açıklama', 'Tutar', 'Ödeme']].concat(
+      state.expenses.slice().sort(byTime).map(e => [e.d, e.t, txt(e.desc), dec(e.amount), e.pay === 'kart' ? 'Kart' : 'Nakit']))],
+    daily: ['gunluk-ozet', () => {
+      const keys = [...new Set(state.sales.map(s => s.d).concat(state.expenses.map(e => e.d), Object.keys(state.days)))].sort();
+      return [['Tarih', 'Ciro', 'Nakit', 'Kart', 'Gider', 'Net', 'Satış adedi', 'Kasa farkı']].concat(keys.map(k => {
+        const t = dayTotals(k), dd = state.days[k] || {};
+        const open = dd.open != null ? dd.open : state.settings.openCash;
+        const diff = dd.counted == null ? '' : dec(dd.counted - (open + t.nakit - t.giderNakit));
+        return [k, dec(t.ciro), dec(t.nakit), dec(t.kart), dec(t.gider), dec(t.net), t.adet, diff];
+      }));
+    }],
+    stock: ['stok', () => [['Kalem', 'Miktar', 'Birim', 'Uyarı sınırı', 'Durum']].concat(
+      state.stock.map(i => [txt(i.name), dec(i.qty), i.unit, dec(i.min), i.qty <= i.min ? 'Azaldı' : 'Yeterli']))],
+  };
+  document.querySelectorAll('[data-export]').forEach(b => b.addEventListener('click', () => {
+    const [file, rows] = EXPORTS[b.dataset.export];
+    download(slug() + '-' + file + '-' + today() + '.csv', csv(rows()), 'text/csv;charset=utf-8');
+  }));
+
+  $('backupBtn').addEventListener('click', () => {
+    download('kafe-defteri-yedek-' + today() + '.json', JSON.stringify(state, null, 1), 'application/json');
+  });
+  $('restoreFile').addEventListener('change', e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      let data;
+      try { data = JSON.parse(r.result); } catch (err) { toast('Dosya okunamadı: geçerli bir yedek değil.'); return; }
+      if (!data || !Array.isArray(data.products) || !Array.isArray(data.sales)) { toast('Bu dosya bir Kafe Defteri yedeği değil.'); return; }
+      if (!confirm('Bu cihazdaki tüm kayıtlar yedektekilerle değiştirilecek. Devam edilsin mi?')) return;
+      state = normalize(data); state.started = true;
+      save(); goDay(today());
+      toast('Yedek geri yüklendi.');
+    };
+    r.readAsText(f);
+  });
+  $('resetBtn').addEventListener('click', () => {
+    if (!confirm('Tüm ürünler, satışlar, giderler ve stok silinecek. Bu işlem geri alınamaz. Emin misin?')) return;
+    state = blank(); entryOpen = null;
+    save(); goDay(today()); setTab('kasa');
+    toast('Tüm veriler silindi.');
+  });
+
+  // ---------- Başlangıç ----------
+  function loadDemo() {
+    let seed = 20261118;
+    const rnd = () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const P = [['Espresso', 70], ['Americano', 85], ['Latte', 110], ['Cold Brew', 120], ['Çay', 25], ['Su', 20], ['Kurabiye', 60], ['Brownie', 90]];
+    const W = [3, 5, 6, 4, 8, 3, 3, 2];
+    const WT = W.reduce((a, b) => a + b, 0);
+    const pick = () => { let r = rnd() * WT; for (let i = 0; i < W.length; i++) { r -= W[i]; if (r < 0) return i; } return 0; };
+    state = blank();
+    state.started = true; state.name = 'Örnek Kafe'; state.settings.openCash = 500;
+    state.products = P.map(([name, price]) => ({ id: uid(), name, price }));
+    state.stock = [['Kahve çekirdeği', 'kg', 3.5, 2], ['Süt', 'litre', 6, 8], ['Karton bardak', 'adet', 140, 100],
+      ['Şeker', 'paket', 320, 100], ['Su', 'şişe', 18, 24], ['Kurabiye', 'adet', 22, 10]]
+      .map(([name, unit, qty, min]) => ({ id: uid(), name, unit, qty, min }));
+    const now = new Date(), t0 = today();
+    for (let back = 6; back >= 0; back--) {
+      const k = addDays(t0, -back), d = parseKey(k), we = d.getDay() === 0 || d.getDay() === 6;
+      let n = Math.round((we ? 56 : 38) * (0.85 + rnd() * 0.3));
+      let end = 22 * 60;
+      if (back === 0) { end = Math.max(8 * 60 + 30, Math.min(now.getHours() * 60 + now.getMinutes(), 22 * 60)); n = Math.max(1, Math.round(n * (end - 480) / 840)); }
+      const stamp = mins => ({ t: pad(Math.floor(mins / 60)) + ':' + pad(mins % 60), ts: new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(mins / 60), mins % 60).getTime() });
+      for (let j = 0; j < n; j++) {
+        const p = state.products[pick()], st = stamp(480 + Math.floor(rnd() * (end - 480)));
+        state.sales.push({ id: uid(), d: k, t: st.t, ts: st.ts, pid: p.id, name: p.name, price: p.price, qty: 1, pay: rnd() < 0.35 ? 'nakit' : 'kart' });
+      }
+      const exps = [['Süt alımı', 240 + Math.round(rnd() * 60), 'nakit']];
+      if (back % 3 === 0) exps.push(['Simit ve poğaça', 180, 'nakit']);
+      if (back === 4) exps.push(['Kahve çekirdeği (2 kg)', 1450, 'kart']);
+      exps.forEach(([desc, amount, p], i) => { const st = stamp(8 * 60 + 15 + i * 7); state.expenses.push({ id: uid(), d: k, t: st.t, ts: st.ts, desc, amount, pay: p }); });
+      if (back > 0) { const t = dayTotals(k); state.days[k] = { counted: r2(500 + t.nakit - t.giderNakit + (back === 2 ? -20 : 0)) }; }
+    }
+    state.sales.sort((a, b) => a.ts - b.ts);
+    save(); goDay(t0); setTab('kasa');
+    toast('Örnek veriler yüklendi. Ayarlar > Sıfırla ile temizleyebilirsin.');
+  }
+  $('demoBtn').addEventListener('click', loadDemo);
+  $('startBtn').addEventListener('click', () => {
+    state.started = true; save(); renderAll(); setTab('ayar');
+    toast('Önce ürünlerini ve fiyatlarını ekle.');
+    $('pName').focus();
+  });
+
+  renderAll();
+
+  // Gece yarısı geçince, bugünü izliyorsak yeni güne geç
+  let lastToday = today();
+  setInterval(() => { const t = today(); if (t !== lastToday) { if (day === lastToday) day = t; lastToday = t; renderAll(); } }, 60000);
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
