@@ -16,6 +16,7 @@ Küçük kafeler için telefonda çalışan satış, gider, kasa sayımı ve sto
 - **Gider kaydı:** Süt alımı, kira, fatura gibi giderleri tutarıyla ekle.
 - **Gün sonu kasa sayımı:** Açılış kasası + nakit satış − nakit gider ile kasada olması gereken parayı hesaplar; saydığın tutarı yazınca eksik ya da fazlayı gösterir.
 - **Stok takibi:** Her kalem için uyarı sınırı belirlenir. Sınıra inen kalemler kırmızıya döner ve kasa ekranında uyarı çıkar. Alım girerken maliyet yazarsan gider olarak da kaydedilir.
+- **Gün sonu raporu:** Günün cirosu, nakit/kart dağılımı, giderler, kasa farkı, en çok satanlar ve azalan stok tek dokunuşla WhatsApp, e-posta ya da not uygulamasına gönderilir veya panoya kopyalanır.
 - **Rapor:** Son 7 günün cirosu, gideri, neti ve en çok satan ürünler.
 - **Excel'e aktarma:** Satışlar, giderler, günlük özet ve stok listesi CSV olarak iner, Excel'de doğrudan açılır.
 - **Yedek:** Tüm kayıtlar tek dosya olarak indirilip başka cihaza yüklenebilir.

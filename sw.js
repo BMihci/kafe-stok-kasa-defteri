@@ -1,6 +1,6 @@
 // Kafe Stok ve Kasa Defteri - service worker
 // Dosyaları değiştirdiğinde bu numarayı artır (v1 -> v2), eski önbellek silinsin.
-const CACHE = 'kafe-defter-v1';
+const CACHE = 'kafe-defter-v2';
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

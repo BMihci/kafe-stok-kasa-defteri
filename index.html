@@ -163,6 +163,10 @@
   .chart .col.sel .cbar { background: var(--accent); }
   .chart .col.sel .day, .chart .col.sel .val { color: var(--text); font-weight: 600; }
 
+  .report {
+    margin: 12px 0 0; padding: 12px; border-radius: 12px; background: var(--chip); color: var(--text);
+    font: .85rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere;
+  }
   .prod input.pn { flex: 1 1 120px; }
   .prod input.pp { flex: 0 0 96px; width: 96px; text-align: right; }
 
@@ -256,6 +260,17 @@
         <label for="counted">Sayılan nakit</label><input id="counted" inputmode="decimal" placeholder="—" autocomplete="off">
         <span class="tot">Fark</span><b class="tot" id="kzDiff">—</b>
       </div>
+    </div>
+
+    <div class="card">
+      <h2>Gün sonu raporu</h2>
+      <div class="btns">
+        <button class="btn" id="shareBtn" type="button">Paylaş</button>
+        <button class="btn ghost" id="copyBtn" type="button">Kopyala</button>
+        <button class="btn ghost" id="showBtn" type="button" aria-expanded="false">Raporu göster</button>
+      </div>
+      <pre class="report hidden" id="report"></pre>
+      <p class="hint">Günün özetini WhatsApp, e-posta ya da not uygulamasına gönder; ortağına ya da muhasebeciye iletmek için.</p>
     </div>
   </section>
 
@@ -509,10 +524,73 @@
     if (dd.counted == null) { diffEl.textContent = '—'; diffEl.className = 'tot'; }
     else {
       const diff = r2(dd.counted - expect);
-      diffEl.textContent = diff === 0 ? '✓ Kasa tutuyor' : (diff > 0 ? '+' : '') + fm(diff) + (diff > 0 ? ' fazla' : ' eksik');
+      diffEl.textContent = diff === 0 ? '✓ Kasa tutuyor' : (diff > 0 ? '+' : '') + fm(Math.abs(diff)) + (diff > 0 ? ' fazla' : ' eksik');
       diffEl.className = 'tot ' + (diff === 0 ? 'pos' : diff > 0 ? 'pos' : 'neg');
     }
+    if (!$('report').classList.contains('hidden')) $('report').textContent = dayReport(day);
   }
+
+  // ---------- Gün sonu raporu ----------
+  function dayReport(k) {
+    const t = dayTotals(k), dd = state.days[k] || {};
+    const open = dd.open != null ? dd.open : state.settings.openCash;
+    const expect = r2(open + t.nakit - t.giderNakit);
+    const date = parseKey(k).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+    const L = ['☕ ' + state.name + ' · Gün sonu raporu', date, ''];
+    L.push('Ciro: ' + fm(t.ciro) + ' (' + t.adet + ' satış)');
+    L.push('  Nakit: ' + fm(t.nakit) + ' · Kart: ' + fm(t.kart));
+    L.push('Gider: ' + fm(t.gider) + (t.e.length ? ' (' + t.e.length + ' kalem)' : ''));
+    L.push('Net: ' + fm(t.net));
+    L.push('');
+    let kasa = 'Kasa: olması gereken ' + fm(expect);
+    if (dd.counted != null) {
+      const diff = r2(dd.counted - expect);
+      kasa += ' · sayılan ' + fm(dd.counted) + ' · ' + (diff === 0 ? 'tutuyor ✓' : 'fark ' + (diff > 0 ? '+' : '') + fm(Math.abs(diff)) + (diff > 0 ? ' fazla' : ' eksik'));
+    } else kasa += ' · sayım yapılmadı';
+    L.push(kasa);
+    const agg = {};
+    t.s.forEach(s => { agg[s.name] = (agg[s.name] || 0) + s.qty; });
+    const top = Object.entries(agg).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    if (top.length) {
+      L.push('', 'En çok satanlar:');
+      top.forEach(([n, q], i) => L.push('  ' + (i + 1) + '. ' + n + ' · ' + q + ' adet'));
+    }
+    if (t.e.length) {
+      L.push('', 'Giderler:');
+      t.e.slice().sort((a, b) => a.ts - b.ts).forEach(e => L.push('  • ' + e.desc + ': ' + fm(e.amount)));
+    }
+    const low = lowItems();
+    if (low.length) L.push('', '⚠ Stok azaldı: ' + low.map(i => i.name + ' (' + fq(i.qty) + ' ' + i.unit + ')').join(', '));
+    return L.join('\n');
+  }
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+    try {
+      const ta = el('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok;
+    } catch (e) { return false; }
+  }
+  $('copyBtn').addEventListener('click', async () => {
+    const ok = await copyText(dayReport(day));
+    if (ok) toast('Rapor panoya kopyalandı.');
+    else { $('report').textContent = dayReport(day); $('report').classList.remove('hidden'); $('showBtn').textContent = 'Raporu gizle'; toast('Kopyalanamadı; rapor aşağıda, elle seçip kopyala.'); }
+  });
+  $('shareBtn').addEventListener('click', async () => {
+    const text = dayReport(day);
+    if (navigator.share) {
+      try { await navigator.share({ title: state.name + ' · Gün sonu raporu', text }); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    if (await copyText(text)) toast('Paylaşım bu tarayıcıda yok; rapor panoya kopyalandı.');
+    else toast('Paylaşılamadı; "Raporu göster" ile elle kopyala.');
+  });
+  $('showBtn').addEventListener('click', () => {
+    const r = $('report'), show = r.classList.contains('hidden');
+    if (show) r.textContent = dayReport(day);
+    r.classList.toggle('hidden', !show);
+    $('showBtn').textContent = show ? 'Raporu gizle' : 'Raporu göster';
+    $('showBtn').setAttribute('aria-expanded', String(show));
+  });
 
   function renderStock() {
     const ul = $('stockList');
